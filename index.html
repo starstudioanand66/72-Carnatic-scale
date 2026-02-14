@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIRTUOSO 2D - 72 Melakarta Ragas (Carnatic Style)</title>
+    <!-- Import Tone.js for robust, high-quality audio synthesis -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --panel-bg: #1e1e1e;
+            --text-main: #ffffff;
+            --text-sub: #b0b0b0;
+            --accent-blue: #2979ff;
+            --accent-red: #d50000;
+            --piano-white: #fdfdfd;
+            --piano-black: #111;
+            --root-highlight: #ff5252;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            user-select: none;
+        }
+
+        /* Main Application Container */
+        .app-container {
+            background-color: var(--panel-bg);
+            width: 950px;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+            border: 1px solid #333;
+        }
+
+        /* --- Header Section --- */
+        .header-display {
+            text-align: center;
+            width: 100%;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #333;
+        }
+
+        .scale-title {
+            font-size: 2.5rem;
+            font-weight: bold; 
+            margin: 0 0 10px 0;
+            letter-spacing: 1px;
+            color: var(--text-main);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .raga-subtitle {
+            font-size: 1.1rem;
+            font-weight: bold; 
+            color: var(--text-sub);
+            margin: 0;
+        }
+
+        /* --- Controls Section --- */
+        .controls-panel {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+            align-items: center;
+        }
+
+        /* Form Elements */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #666;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+
+        select {
+            appearance: none;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            padding: 10px 15px;
+            border-radius: 6px;
+            color: white;
+            font-size: 0.95rem;
+            width: 100%;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        select:focus {
+            border-color: var(--accent-blue);
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn {
+            border: none;
+            padding: 12px 25px;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s, box-shadow 0.2s;
+            color: white;
+            min-width: 100px;
+            position: relative;
+            top: 0;
+        }
+
+        .btn:active { transform: translateY(2px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: translateY(2px); box-shadow: none !important; }
+
+        .btn-play { 
+            background: linear-gradient(to bottom, #448aff, #2979ff);
+            box-shadow: 0 4px 0 #005ecb, 0 5px 10px rgba(0,0,0,0.3);
+        }
+
+        .btn-stop { 
+            background: linear-gradient(to bottom, #ff5252, #d50000);
+            box-shadow: 0 4px 0 #9a0007, 0 5px 10px rgba(0,0,0,0.3);
+        }
+
+        /* Slider */
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            border: 2px solid #fff;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #444;
+            border-radius: 2px;
+        }
+
+        /* --- 3D Piano Section --- */
+        .piano-wrapper {
+            position: relative;
+            background: #050505;
+            padding: 20px 20px 0 20px; /* Top padding for the felt rail */
+            border-radius: 4px;
+            box-shadow: inset 0 10px 20px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.5);
+            overflow-x: auto;
+            max-width: 100%;
+            display: flex;
+            justify-content: center;
+            border-top: 8px solid #300; /* Red felt strip */
+        }
+
+        .piano-keys {
+            position: relative;
+            height: 240px;
+        }
+
+        .key {
+            position: absolute;
+            top: 0;
+            border-radius: 0 0 4px 4px;
+            cursor: pointer;
+            transition: background-color 0.05s, transform 0.05s, box-shadow 0.05s;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            user-select: none;
+        }
+
+        /* 3D White Key */
+        .white-key {
+            width: 42px;
+            height: 220px;
+            background: linear-gradient(to bottom, #ffffff 0%, #f0f0f0 90%, #dcdcdc 100%);
+            border: 1px solid #aaa;
+            border-top: none;
+            z-index: 1;
+            color: #555;
+            box-shadow: inset 0 -4px 0px #999, 2px 4px 5px rgba(0,0,0,0.4);
+        }
+
+        /* 3D Black Key */
+        .black-key {
+            width: 26px;
+            height: 140px;
+            background: linear-gradient(to right, #222, #000 40%, #333);
+            border: 1px solid #000;
+            z-index: 2;
+            box-shadow: 2px 4px 5px rgba(0,0,0,0.6);
+            border-bottom: 4px solid #000;
+        }
+
+        /* Active States (Simulating Press) */
+        .key.active {
+            transform: translateY(4px) !important;
+            background: var(--accent-blue) !important;
+            box-shadow: none !important;
+            border: 1px solid #0056b3 !important;
+            color: white;
+        }
+
+        .key.active::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(0,0,0,0.1));
+            border-radius: 0 0 4px 4px;
+        }
+
+        /* Root Indicator "Sa" */
+        .key.root::before {
+            content: 'Sa';
+            position: absolute;
+            bottom: 40px;
+            background: var(--root-highlight);
+            color: white;
+            font-size: 10px;
+            padding: 3px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: 800;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            z-index: 3;
+        }
+        
+        .key.black-key.root::before {
+            bottom: 30px;
+            font-size: 9px;
+            padding: 2px 4px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header-display">
+            <h1 class="scale-title" id="display-scale-name">C Major</h1>
+            <p class="raga-subtitle" id="display-raga-name">Melakarta #1 - Sa: C</p>
+        </header>
+
+        <!-- Controls -->
+        <div class="controls-panel">
+            <!-- Dropdowns -->
+            <div class="control-group">
+                <div class="control-label">Raga (72 Melakarta)</div>
+                <select id="scale-select">
+                    <!-- Populated by JS -->
+                </select>
+                
+                <div class="control-label" style="margin-top:10px;">Instrument</div>
+                <select id="instrument-select">
+                    <option value="piano">Grand Piano</option>
+                    <option value="flute">Carnatic Flute</option>
+                    <option value="violin">Carnatic Violin</option>
+                    <option value="strings">Strings</option>
+                    <option value="sax">Saxophone</option>
+                    <option value="mandolin">Mandolin</option>
+                </select>
+            </div>
+
+            <!-- Buttons -->
+            <div class="button-group">
+                <button class="btn btn-play" id="btn-play">Play</button>
+                <button class="btn btn-stop" id="btn-stop" disabled>Stop</button>
+            </div>
+
+            <!-- Root & Speed -->
+            <div class="control-group">
+                <div class="control-label">Root Note</div>
+                <select id="root-select">
+                    <!-- Populated by JS -->
+                </select>
+
+                <div class="slider-group" style="margin-top:10px;">
+                    <div class="control-label">Speed (BPM): <span id="bpm-display" style="color:var(--accent-blue); float:right;">120</span></div>
+                    <input type="range" id="bpm-slider" min="60" max="240" value="120" step="10">
+                </div>
+            </div>
+        </div>
+
+        <!-- Piano -->
+        <div class="piano-wrapper">
+            <div class="piano-keys" id="piano-container">
+                <!-- Keys generated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const OCTAVES = 3;
+        const START_OCTAVE = 3; // C3
+        const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const WHITE_KEY_WIDTH = 42;
+        const BLACK_KEY_WIDTH = 26;
+        
+        // Scale Logic - The 72 Melakarta Ragas
+        const SCALES = [
+            // I. Indu Chakra (1-6)
+            { "name": "Kanakangi", "raga": "Melakarta #1", "intervals": [1, 1, 3, 2, 1, 1, 3] },
+            { "name": "Ratnangi", "raga": "Melakarta #2", "intervals": [1, 1, 3, 2, 1, 2, 1] },
+            { "name": "Ganamurti", "raga": "Melakarta #3", "intervals": [1, 1, 3, 2, 1, 3, 1] },
+            { "name": "Vanaspati", "raga": "Melakarta #4", "intervals": [1, 1, 3, 2, 2, 1, 1] },
+            { "name": "Manavati", "raga": "Melakarta #5", "intervals": [1, 1, 3, 2, 2, 1, 2] },
+            { "name": "Tanarupi", "raga": "Melakarta #6", "intervals": [1, 1, 3, 2, 3, 1, 1] },
+            // II. Netra Chakra (7-12)
+            { "name": "Senavati", "raga": "Melakarta #7", "intervals": [1, 2, 2, 2, 1, 1, 3] },
+            { "name": "Hanumatodi", "raga": "Melakarta #8", "intervals": [1, 2, 2, 2, 1, 2, 1] },
+            { "name": "Dhenuka", "raga": "Melakarta #9", "intervals": [1, 2, 2, 2, 1, 3, 1] },
+            { "name": "Natakapriya", "raga": "Melakarta #10", "intervals": [1, 2, 2, 2, 2, 1, 1] },
+            { "name": "Kokilapriya", "raga": "Melakarta #11", "intervals": [1, 2, 2, 2, 2, 1, 2] },
+            { "name": "Rupavati", "raga": "Melakarta #12", "intervals": [1, 2, 2, 2, 3, 1, 1] },
+            // III. Agni Chakra (13-18)
+            { "name": "Gayakapriya", "raga": "Melakarta #13", "intervals": [1, 3, 1, 2, 1, 1, 3] },
+            { "name": "Vakulabharanam", "raga": "Melakarta #14", "intervals": [1, 3, 1, 2, 1, 2, 2] }, 
+            { "name": "Mayamalavagowla", "raga": "Melakarta #15", "intervals": [1, 3, 1, 2, 1, 3, 1] },
+            { "name": "Chakravakam", "raga": "Melakarta #16", "intervals": [1, 3, 1, 2, 2, 1, 2] }, 
+            { "name": "Suryakantam", "raga": "Melakarta #17", "intervals": [1, 3, 1, 2, 2, 1, 2] },
+            { "name": "Hatakambari", "raga": "Melakarta #18", "intervals": [1, 3, 1, 2, 3, 1, 1] },
+            // IV. Veda Chakra (19-24)
+            { "name": "Jhankaradhwani", "raga": "Melakarta #19", "intervals": [2, 1, 2, 2, 1, 1, 3] },
+            { "name": "Natabhairavi", "raga": "Melakarta #20", "intervals": [2, 1, 2, 2, 1, 2, 1] },
+            { "name": "Keeravani", "raga": "Melakarta #21", "intervals": [2, 1, 2, 2, 1, 3, 1] },
+            { "name": "Kharaharapriya", "raga": "Melakarta #22", "intervals": [2, 1, 2, 2, 2, 1, 1] },
+            { "name": "Gowrimanohari", "raga": "Melakarta #23", "intervals": [2, 1, 2, 2, 2, 1, 2] },
+            { "name": "Varunapriya", "raga": "Melakarta #24", "intervals": [2, 1, 2, 2, 3, 1, 1] },
+            // V. Bana Chakra (25-30)
+            { "name": "Mararanjani", "raga": "Melakarta #25", "intervals": [2, 2, 1, 2, 1, 1, 3] },
+            { "name": "Charukesi", "raga": "Melakarta #26", "intervals": [2, 2, 1, 2, 1, 2, 1] },
+            { "name": "Sarasangi", "raga": "Melakarta #27", "intervals": [2, 2, 1, 2, 1, 3, 1] },
+            { "name": "Harikambhoji", "raga": "Melakarta #28", "intervals": [2, 2, 1, 2, 2, 1, 2] }, 
+            { "name": "Shankarabharanam", "raga": "Melakarta #29", "intervals": [2, 2, 1, 2, 2, 1, 2] },
+            { "name": "Naganandini", "raga": "Melakarta #30", "intervals": [2, 2, 1, 2, 3, 1, 1] },
+            // VI. Rutu Chakra (31-36)
+            { "name": "Yagapriya", "raga": "Melakarta #31", "intervals": [3, 1, 1, 2, 1, 1, 3] },
+            { "name": "Ragavardhini", "raga": "Melakarta #32", "intervals": [3, 1, 1, 2, 1, 2, 1] },
+            { "name": "Gangeyabhushani", "raga": "Melakarta #33", "intervals": [3, 1, 1, 2, 1, 3, 1] },
+            { "name": "Vagadheeswari", "raga": "Melakarta #34", "intervals": [3, 1, 1, 2, 2, 1, 1] },
+            { "name": "Shulini", "raga": "Melakarta #35", "intervals": [3, 1, 1, 2, 2, 1, 2] },
+            { "name": "Chalanata", "raga": "Melakarta #36", "intervals": [3, 1, 1, 2, 3, 1, 1] },
+            // VII. Rishi Chakra (37-42)
+            { "name": "Salagam", "raga": "Melakarta #37", "intervals": [1, 1, 4, 1, 1, 1, 3] },
+            { "name": "Jalarnavam", "raga": "Melakarta #38", "intervals": [1, 1, 4, 1, 1, 2, 1] },
+            { "name": "Jhalavarali", "raga": "Melakarta #39", "intervals": [1, 1, 4, 1, 1, 3, 1] },
+            { "name": "Navaneetam", "raga": "Melakarta #40", "intervals": [1, 1, 4, 1, 2, 1, 1] },
+            { "name": "Pavani", "raga": "Melakarta #41", "intervals": [1, 1, 4, 1, 2, 1, 2] },
+            { "name": "Raghupriya", "raga": "Melakarta #42", "intervals": [1, 1, 4, 1, 3, 1, 1] },
+            // VIII. Vasu Chakra (43-48)
+            { "name": "Gavambodhi", "raga": "Melakarta #43", "intervals": [1, 2, 3, 1, 1, 1, 3] },
+            { "name": "Bhavapriya", "raga": "Melakarta #44", "intervals": [1, 2, 3, 1, 1, 2, 1] },
+            { "name": "Shubhapantuvarali", "raga": "Melakarta #45", "intervals": [1, 2, 3, 1, 1, 3, 1] },
+            { "name": "Shadvidamargini", "raga": "Melakarta #46", "intervals": [1, 2, 3, 1, 2, 1, 1] },
+            { "name": "Suvarnangi", "raga": "Melakarta #47", "intervals": [1, 2, 3, 1, 2, 1, 2] },
+            { "name": "Divyamani", "raga": "Melakarta #48", "intervals": [1, 2, 3, 1, 3, 1, 1] },
+            // IX. Brahma Chakra (49-54)
+            { "name": "Dhavalambari", "raga": "Melakarta #49", "intervals": [1, 3, 2, 1, 1, 1, 3] },
+            { "name": "Namanarayani", "raga": "Melakarta #50", "intervals": [1, 3, 2, 1, 1, 2, 1] },
+            { "name": "Kamavardhini", "raga": "Melakarta #51", "intervals": [1, 3, 2, 1, 1, 3, 1] },
+            { "name": "Ramapriya", "raga": "Melakarta #52", "intervals": [1, 3, 2, 1, 2, 1, 2] },
+            { "name": "Gamanashrama", "raga": "Melakarta #53", "intervals": [1, 3, 2, 1, 2, 1, 2] },
+            { "name": "Vishwambari", "raga": "Melakarta #54", "intervals": [1, 3, 2, 1, 3, 1, 1] },
+            // X. Disi Chakra (55-60)
+            { "name": "Shamalangi", "raga": "Melakarta #55", "intervals": [2, 1, 3, 1, 1, 1, 3] },
+            { "name": "Shanmukhapriya", "raga": "Melakarta #56", "intervals": [2, 1, 3, 1, 1, 2, 1] },
+            { "name": "Simhendramadhyama", "raga": "Melakarta #57", "intervals": [2, 1, 3, 1, 1, 3, 1] },
+            { "name": "Hemavati", "raga": "Melakarta #58", "intervals": [2, 1, 3, 1, 2, 1, 1] },
+            { "name": "Dharmavati", "raga": "Melakarta #59", "intervals": [2, 1, 3, 1, 2, 1, 2] },
+            { "name": "Neetimati", "raga": "Melakarta #60", "intervals": [2, 1, 3, 1, 3, 1, 1] },
+            // XI. Rudra Chakra (61-66)
+            { "name": "Kantamani", "raga": "Melakarta #61", "intervals": [2, 2, 2, 1, 1, 1, 3] },
+            { "name": "Rishabhapriya", "raga": "Melakarta #62", "intervals": [2, 2, 2, 1, 1, 2, 1] },
+            { "name": "Latangi", "raga": "Melakarta #63", "intervals": [2, 2, 2, 1, 1, 3, 1] },
+            { "name": "Vachaspati", "raga": "Melakarta #64", "intervals": [2, 2, 2, 1, 2, 1, 1] },
+            { "name": "Mecha Kalyani", "raga": "Melakarta #65", "intervals": [2, 2, 2, 1, 2, 1, 2] },
+            { "name": "Chitrambari", "raga": "Melakarta #66", "intervals": [2, 2, 2, 1, 3, 1, 1] },
+            // XII. Aditya Chakra (67-72)
+            { "name": "Sucharitra", "raga": "Melakarta #67", "intervals": [3, 1, 2, 1, 1, 1, 3] },
+            { "name": "Jyotiswarupini", "raga": "Melakarta #68", "intervals": [3, 1, 2, 1, 1, 2, 1] },
+            { "name": "Dhatuvardhini", "raga": "Melakarta #69", "intervals": [3, 1, 2, 1, 1, 3, 1] },
+            { "name": "Nasikabhushani", "raga": "Melakarta #70", "intervals": [3, 1, 2, 1, 2, 1, 1] },
+            { "name": "Kosalam", "raga": "Melakarta #71", "intervals": [3, 1, 2, 1, 2, 1, 2] },
+            { "name": "Rasikapriya", "raga": "Melakarta #72", "intervals": [3, 1, 2, 1, 3, 1, 1] }
+        ];
+
+        // --- State ---
+        let currentRootIdx = 0; // 0 = C
+        let currentScaleIdx = 0; 
+        let currentInstrument = 'piano';
+        let isPlaying = false;
+        let playbackSpeed = 120; // BPM
+        let scheduledPart = null;
+
+        // --- Master Effects (For Robust Execution) ---
+        // A Limiter prevents audio clipping/distortion when playing loud
+        const masterLimiter = new Tone.Limiter(-1).toDestination();
+
+        // --- Tone.js Instrument Definitions (High Quality Synthesis) ---
+        const instruments = {};
+
+        // 1. Piano: Salamander Grand Piano Samples (High Quality)
+        instruments.piano = new Tone.Sampler({
+            urls: {
+                A0: "A0.mp3",
+                C1: "C1.mp3",
+                "D#1": "Ds1.mp3",
+                "F#1": "Fs1.mp3",
+                A1: "A1.mp3",
+                C2: "C2.mp3",
+                "D#2": "Ds2.mp3",
+                "F#2": "Fs2.mp3",
+                A2: "A2.mp3",
+                C3: "C3.mp3",
+                "D#3": "Ds3.mp3",
+                "F#3": "Fs3.mp3",
+                A3: "A3.mp3",
+                C4: "C4.mp3",
+                "D#4": "Ds4.mp3",
+                "F#4": "Fs4.mp3",
+                A4: "A4.mp3",
+                C5: "C5.mp3",
+                "D#5": "Ds5.mp3",
+                "F#5": "Fs5.mp3",
+                A5: "A5.mp3",
+                C6: "C6.mp3",
+                "D#6": "Ds6.mp3",
+                "F#6": "Fs6.mp3",
+                A6: "A6.mp6",
+                C7: "C7.mp3",
+                "D#7": "Ds7.mp3",
+                "F#7": "Fs7.mp3",
+                A7: "A7.mp7",
+                C8: "C8.mp3",
+            },
+            release: 1,
+            baseUrl: "https://tonejs.github.io/audio/salamander/",
+        }).connect(masterLimiter);
+
+        // 2. Carnatic Flute (Bansuri/Venu)
+        // Uses AM Synthesis to simulate breath air and the wooden body resonance
+        instruments.flute = new Tone.PolySynth(Tone.AMSynth, {
+            harmonicity: 1,
+            detune: 0,
+            oscillator: {
+                type: "sine",
+                phase: 0,
+                count: 1,
+                spread: 0
+            },
+            envelope: {
+                attack: 0.1,
+                decay: 0.1,
+                sustain: 0.6,
+                release: 0.5
+            },
+            modulation: {
+                type: "triangle",
+                modulationIndex: 2, // Subtle breathiness
+                harmonicity: 2
+            },
+            modulationEnvelope: {
+                attack: 0.5,
+                decay: 0.01,
+                sustain: 1,
+                release: 0.5
+            }
+        }).connect(masterLimiter);
+        
+        // Add specific Reverb for the "Hollow" sound of a flute
+        const fluteReverb = new Tone.Reverb({ decay: 1.5, preDelay: 0.01 }).toDestination();
+        instruments.flute.connect(fluteReverb);
+        // Lowpass filter to take off the harsh edge
+        const fluteFilter = new Tone.Filter(3000, "lowpass").toDestination();
+        instruments.flute.connect(fluteFilter);
+
+        // 3. Carnatic Violin
+        // Uses Sawtooth with slow attack (bowing), Portamento (glides), and Vibrato
+        instruments.violin = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "sawtooth", count: 2, spread: 10 }, // Detuned sawtooths for richness
+            portamento: 0.15, // Slide between notes (gamakam)
+            envelope: {
+                attack: 0.15, // Bow takes time to engage
+                decay: 0.1,
+                sustain: 0.7,
+                release: 1.5
+            }
+        }).connect(masterLimiter);
+        
+        const violinFilter = new Tone.Filter({
+            frequency: 4000,
+            type: "lowpass"
+        }).toDestination();
+        instruments.violin.connect(violinFilter);
+        
+        // Carnatic violin has prominent vibrato
+        const violinVibrato = new Tone.Vibrato(5, 0.15).toDestination(); 
+        violinFilter.connect(violinVibrato);
+
+        // 4. Strings (Orchestral Section)
+        // Slow attack, long release, rich stereo chorus
+        instruments.strings = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "sawtooth" },
+            envelope: {
+                attack: 0.6,
+                decay: 0.1,
+                sustain: 0.8,
+                release: 2.0
+            }
+        }).connect(masterLimiter);
+
+        const stringsFilter = new Tone.Filter({
+            frequency: 2500,
+            type: "lowpass"
+        }).toDestination();
+        instruments.strings.connect(stringsFilter);
+
+        // Large Hall Reverb for Strings
+        const stringsReverb = new Tone.Reverb({ decay: 4, preDelay: 0.05 }).toDestination();
+        stringsFilter.connect(stringsReverb);
+        
+        // Chorus to make it sound like a section of instruments, not one
+        const stringsChorus = new Tone.Chorus(4, 2.5, 0.5).toDestination();
+        stringsFilter.connect(stringsChorus);
+
+
+        // 5. Saxophone
+        // Uses FM Synthesis to create the complex reed waveform and "growl"
+        instruments.sax = new Tone.PolySynth(Tone.FMSynth, {
+            harmonicity: 1,
+            modulationIndex: 15, // Complexity of reed vibration
+            oscillator: {
+                type: "sawtooth"
+            },
+            envelope: {
+                attack: 0.05,
+                decay: 0.2,
+                sustain: 0.6,
+                release: 0.8
+            },
+            modulation: {
+                type: "square"
+            },
+            modulationEnvelope: {
+                attack: 0.01,
+                decay: 0.1,
+                sustain: 0.5,
+                release: 0.5
+            }
+        }).connect(masterLimiter);
+
+        const saxFilter = new Tone.Filter({
+            frequency: 1200,
+            Q: 2,
+            type: "bandpass"
+        }).toDestination();
+        instruments.sax.connect(saxFilter);
+        
+        // Slight delay to simulate echoes often heard in sax recordings
+        const saxDelay = new Tone.FeedbackDelay("8n", 0.2).toDestination();
+        saxFilter.connect(saxDelay);
+
+        // 6. Mandolin
+        // Very fast decay (pluck), Distortion (metal strings), Tremolo
+        instruments.mandolin = new Tone.PolySynth(Tone.FMSynth, {
+            harmonicity: 2, // Bell-like overtones
+            modulationIndex: 5,
+            oscillator: { type: "triangle" },
+            envelope: {
+                attack: 0.005, // Instant pluck
+                decay: 0.3,
+                sustain: 0,
+                release: 0.2
+            }
+        }).connect(masterLimiter);
+
+        // Overdrive to give it that 'bite'
+        const mandolinDistortion = new Tone.Distortion(0.2).toDestination();
+        instruments.mandolin.connect(mandolinDistortion);
+        
+        const mandolinFilter = new Tone.Filter(3000, "highpass").toDestination();
+        instruments.mandolin.connect(mandolinFilter);
+
+
+        // --- Helper: MIDI to Note Name ---
+        function midiToNote(midiNote) {
+            const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+            const octave = Math.floor(midiNote / 12) - 1;
+            const noteName = noteNames[midiNote % 12];
+            return noteName + octave;
+        }
+
+        // --- Visuals & DOM ---
+        const container = document.getElementById('piano-container');
+        const keysDom = []; 
+
+        function createPiano() {
+            let whiteKeyIndex = 0;
+            
+            for (let o = 0; o < OCTAVES; o++) {
+                const octaveNum = START_OCTAVE + o;
+                const baseMidi = 12 * (octaveNum + 1);
+                
+                for (let i = 0; i < 12; i++) {
+                    const noteName = NOTES[i];
+                    const isBlack = noteName.includes("#");
+                    const midiNote = baseMidi + i;
+
+                    const keyEl = document.createElement('div');
+                    keyEl.dataset.midi = midiNote;
+                    keyEl.dataset.note = i; 
+                    keyEl.innerText = isBlack ? "" : noteName; 
+
+                    if (isBlack) {
+                        keyEl.className = 'key black-key';
+                        keyEl.style.left = `${(whiteKeyIndex * WHITE_KEY_WIDTH) - (BLACK_KEY_WIDTH / 2)}px`;
+                    } else {
+                        keyEl.className = 'key white-key';
+                        keyEl.style.left = `${whiteKeyIndex * WHITE_KEY_WIDTH}px`;
+                        whiteKeyIndex++;
+                    }
+
+                    container.appendChild(keyEl);
+                    keysDom.push({ element: keyEl, midi: midiNote, noteIndex: i });
+                }
+            }
+            container.style.width = `${whiteKeyIndex * WHITE_KEY_WIDTH}px`;
+        }
+
+        function populateDropdowns() {
+            const rootSelect = document.getElementById('root-select');
+            const scaleSelect = document.getElementById('scale-select');
+
+            NOTES.forEach((note, index) => {
+                const opt = document.createElement('option');
+                opt.value = index;
+                opt.innerText = note;
+                rootSelect.appendChild(opt);
+            });
+
+            SCALES.forEach((scale, index) => {
+                const opt = document.createElement('option');
+                opt.value = index;
+                opt.innerText = (index + 1) + ". " + scale.name;
+                scaleSelect.appendChild(opt);
+            });
+        }
+
+        function updateUI() {
+            const rootName = NOTES[currentRootIdx];
+            const scaleData = SCALES[currentScaleIdx];
+
+            // Update Text Displays
+            document.getElementById('display-scale-name').innerText = `${rootName} ${scaleData.name}`;
+            document.getElementById('display-raga-name').innerText = `${scaleData.raga} - Sa: ${rootName}`;
+
+            // Update Dropdowns (Sync with keyboard arrows)
+            document.getElementById('root-select').value = currentRootIdx;
+            document.getElementById('scale-select').value = currentScaleIdx;
+            document.getElementById('instrument-select').value = currentInstrument;
+
+            // Update Buttons
+            const playBtn = document.getElementById('btn-play');
+            const stopBtn = document.getElementById('btn-stop');
+            
+            if (isPlaying) {
+                playBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                playBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+
+            // Highlight Roots
+            keysDom.forEach(k => {
+                const el = k.element;
+                if (k.noteIndex === currentRootIdx) {
+                    el.classList.add('root');
+                } else {
+                    el.classList.remove('root');
+                }
+                if (!isPlaying) el.classList.remove('active');
+            });
+        }
+
+        // --- Logic ---
+        function getScaleSequence(rootIdx, intervals) {
+            const middleC = 60; 
+            const startMidi = middleC + rootIdx;
+
+            let sequence = [];
+            let semitoneOffset = 0;
+            sequence = [startMidi]; // Root
+
+            for (let interval of intervals) {
+                semitoneOffset += interval;
+                sequence.push(startMidi + semitoneOffset);
+            }
+
+            // Down (excluding top note)
+            for (let i = sequence.length - 2; i >= 0; i--) {
+                sequence.push(sequence[i]);
+            }
+            return sequence;
+        }
+
+        async function playSequence() {
+            if (isPlaying) return;
+            await Tone.start(); // Initialize Audio Context
+            
+            isPlaying = true;
+            Tone.Transport.cancel(); // Clear previous loops
+            
+            // Set Tempo accurately
+            Tone.Transport.bpm.value = playbackSpeed;
+            
+            const scaleData = SCALES[currentScaleIdx];
+            const sequence = getScaleSequence(currentRootIdx, scaleData.intervals);
+            
+            // Convert MIDI to Note Names for Tone.js
+            const noteNames = sequence.map(midiToNote);
+
+            // Create a Tone.Part for accurate scheduling
+            scheduledPart = new Tone.Part((time, note) => {
+                // Trigger Sound
+                instruments[currentInstrument].triggerAttackRelease(note, "8n", time);
+                
+                // Sync Visuals using Tone.Draw (matches audio time)
+                Tone.Draw.schedule(() => {
+                    const keyObj = keysDom.find(k => midiToNote(k.midi) === note);
+                    if (keyObj) {
+                        keyObj.element.classList.add('active');
+                        setTimeout(() => {
+                            keyObj.element.classList.remove('active');
+                        }, (60 / Tone.Transport.bpm.value * 1000 * 0.8));
+                    }
+                }, time);
+
+            }, noteNames.map((note, i) => [i * 0.5, note])); // 0.5 is the time step in beats (eighth notes)
+
+            scheduledPart.start(0);
+            Tone.Transport.start();
+
+            updateUI();
+
+            // Determine when sequence ends
+            const totalDuration = noteNames.length * 0.5 * (60 / Tone.Transport.bpm.value);
+            
+            // Cleanup after sequence ends
+            setTimeout(() => {
+                if (isPlaying) stopSequence();
+            }, totalDuration * 1000 + 500);
+        }
+
+        function stopSequence() {
+            if(isPlaying) {
+                Tone.Transport.stop();
+                if (scheduledPart) {
+                    scheduledPart.dispose();
+                    scheduledPart = null;
+                }
+                
+                // Clear all visual highlights
+                keysDom.forEach(k => k.element.classList.remove('active'));
+                
+                isPlaying = false;
+                updateUI();
+            }
+        }
+
+        // --- Input Handling ---
+        
+        // Keyboard
+        window.addEventListener('keydown', (e) => {
+            if (e.repeat) return;
+
+            switch(e.code) {
+                case 'ArrowLeft':
+                    currentRootIdx = (currentRootIdx - 1 + 12) % 12;
+                    updateUI();
+                    break;
+                case 'ArrowRight':
+                    currentRootIdx = (currentRootIdx + 1) % 12;
+                    updateUI();
+                    break;
+                case 'ArrowUp':
+                    currentScaleIdx = (currentScaleIdx - 1 + SCALES.length) % SCALES.length;
+                    updateUI();
+                    break;
+                case 'ArrowDown':
+                    currentScaleIdx = (currentScaleIdx + 1) % SCALES.length;
+                    updateUI();
+                    break;
+                case 'Space':
+                    e.preventDefault();
+                    if (!isPlaying) playSequence();
+                    break;
+            }
+        });
+
+        // Dropdowns
+        document.getElementById('root-select').addEventListener('change', (e) => {
+            currentRootIdx = parseInt(e.target.value);
+            updateUI();
+        });
+
+        document.getElementById('scale-select').addEventListener('change', (e) => {
+            currentScaleIdx = parseInt(e.target.value);
+            updateUI();
+        });
+
+        document.getElementById('instrument-select').addEventListener('change', (e) => {
+            currentInstrument = e.target.value;
+            updateUI();
+        });
+
+        // UI Buttons & Slider
+        document.getElementById('btn-play').addEventListener('click', playSequence);
+        document.getElementById('btn-stop').addEventListener('click', stopSequence);
+        
+        const bpmSlider = document.getElementById('bpm-slider');
+        const bpmDisplay = document.getElementById('bpm-display');
+        
+        bpmSlider.addEventListener('input', (e) => {
+            playbackSpeed = parseInt(e.target.value);
+            bpmDisplay.innerText = playbackSpeed;
+            // Update Tempo in Real-time
+            Tone.Transport.bpm.value = playbackSpeed;
+        });
+
+        // --- Initialization ---
+        createPiano();
+        populateDropdowns();
+        updateUI();
+
+    </script>
+</body>
+</html>
